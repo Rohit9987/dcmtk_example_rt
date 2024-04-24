@@ -18,6 +18,30 @@
 
 using namespace std;
 
+// operator overloading
+std::ostream& operator<<(std::ostream& os, OFVector<double> data)
+{
+    os << "[";
+    for(int i =0; i < data.size(); i++)
+    {
+        if ((i+1)%3==1)
+            os << ((i+1)/3) << ":(x";
+        else if ((i+1)%3==2)
+            os << "y:";
+        else
+            os << "z:";
+
+        os << data[i];
+        if ((i+1)%3==0)
+            os << ")";
+
+        if (i != data.size() - 1)
+            os << ',';
+    }
+    os << "]\n";
+    return os;
+}
+
 /*
 TODO:
     1. open a rt-plan
@@ -149,18 +173,9 @@ int readPlan(const OFFilename& planFilename)
                  * SSD ????                     - haven't been able to find ssd
                  * (300A, 0130) dicom tag
                  *
-                 * Jaw positions            - yes, need to understand which jaw, mlc is which
-                 * leaf positions
+                 * Jaw positions            - yes,   need to calculate the eqsq, and clarkson
+                 * leaf positions           - ask nikhil to help record video online
                  */
-
-                
-                
-
-
-            
-
-
-
 
             }
             catch(...)
@@ -229,13 +244,74 @@ int readStruct(const OFFilename& structFilename)
                 rtstruct.getStructureSetName(patientName);
                 std::cout << "Struct name: " << patientName << std::endl;
                 // extract the body contour
-                auto contourSequence = rtstruct.getStructureSetROISequence();
+                auto contourSequence = rtstruct.getStructureSetROISequence();       // rtstruct -> getStructureSetROISequence();
+                auto ROIcontourSequence = rtstruct.getROIContourSequence();
+
+                double resolution;
+                rtstruct.getSpatialResolution(resolution);                          // not working
+                std::cout << "Resolution " << resolution << '\n';           
+
                 for(int i = 0; i < contourSequence.getNumberOfItems(); i++)
                 {
-                    auto ROI = contourSequence[i];
+                    auto ROI = contourSequence[i];                      //  Item 
                     OFString name;
-                    ROI.getROIName(name);
-                    std::cout << "name : " << name << '\n';
+                    ROI.getROIName(name);                               // item->GetName();
+
+                    //if(name == "BODY")
+                    {
+                        std::cout << "name : " << name << '\n';
+                        ROI.getROINumber(name);                                 // ROINumber = ReferenceNumber
+                        std::cout << "ROINumber : " << name << '\n';        
+
+                        std::cout << "Execute the logic\n";
+
+                        auto ROI1 = ROIcontourSequence[i];
+                        auto contour = ROI1.getContourSequence();
+                        
+                        int refNumber;
+                        ROI1.getReferencedROINumber(refNumber);
+                        std::cout << "Reference number: " << refNumber << '\n';
+                        int val;
+                        contour[0].getContourNumber(val);
+                        std::cout << "contour val: " << val << '\n';
+                        contour[0].getNumberOfContourPoints(val);
+                        std::cout << "contour points: " << val << '\n';
+
+
+                        OFVector<double> data;
+                        contour[4].getContourData(data);                            // this funcition gives out (x,y,z) or so;
+                        std::cout << data;                                          // need to extract the x, y, z to get the contour points
+
+                        contour[0].getNumberOfContourPoints(val);
+                        std::cout << "contour points: " << val << '\n';
+
+                        double thickness;
+                        contour[0].getContourSlabThickness(thickness);
+                        std::cout << "Thickness: " << thickness << '\n';
+
+                        OFString color;
+                        contour[0].getAttachedContours(color);
+                        std::cout << "Attached Contour: " << color << '\n';
+
+                        OFVector<double> offsetVector;
+                        contour[0].getContourOffsetVector(offsetVector);
+                        std::cout << "OffsetVector: " << offsetVector << '\n';
+
+
+
+                        std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+                        contour[1].getContourData(data);
+                        std::cout << data;
+
+
+
+
+
+                        double ROIVolume;
+                        ROI.getROIVolume(ROIVolume);
+                        std::cout << ROIVolume << '\n';
+                    }
+
                 }
 
             } 
