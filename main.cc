@@ -1,4 +1,6 @@
 #include <iostream>
+#include <vector>
+#include <cmath>
 
 #include "dcmtk/config/osconfig.h"    /* make sure OS specific configuration is included first */
 
@@ -16,7 +18,38 @@
 #include "dcmtk/dcmrt/drtionpl.h"
 #include "dcmtk/dcmrt/drtiontr.h"
 
-using namespace std;
+class CPInformation
+{
+private:
+    double cp_gantryAngle;
+    double cp_collimatorAngle;
+    double cp_couchAngle;
+
+    double cp_MU;
+
+    std::vector<double> _isocenter;
+    std::vector<double> cp_gantryPoint {0,0,0};
+
+    void calculateGantryPoint()
+    {
+        double pi = 22./7.;
+        double gantryAngleInRadian = cp_gantryAngle * M_PI / 180.0;
+        cp_gantryPoint[0] = _isocenter[0] + 1000 * std::sin(gantryAngleInRadian);
+        cp_gantryPoint[1] = _isocenter[1] + 1000 * std::cos(gantryAngleInRadian);
+        cp_gantryPoint[2] = _isocenter[2];
+    }
+        
+    
+public:
+    CPInformation(double gantryAngle): cp_gantryAngle(gantryAngle), _isocenter({0,0,0})
+    {
+       calculateGantryPoint(); 
+        std::cout << "(" << cp_gantryPoint[0] << ", " << cp_gantryPoint[1] << "," << cp_gantryPoint[2] << ")\n";
+    }
+    ~CPInformation()
+    {}
+};
+
 
 // operator overloading
 std::ostream& operator<<(std::ostream& os, OFVector<double> data)
@@ -33,7 +66,10 @@ std::ostream& operator<<(std::ostream& os, OFVector<double> data)
 
         os << data[i];
         if ((i+1)%3==0)
+        {
+
             os << ")";
+        }
 
         if (i != data.size() - 1)
             os << ',';
@@ -41,6 +77,26 @@ std::ostream& operator<<(std::ostream& os, OFVector<double> data)
     os << "]\n";
     return os;
 }
+void printVector(OFVector<double> data)
+{
+    std::cout << "[";
+    double x, y, z;
+    for(int i =0; i < data.size(); i++)
+    {
+        if ((i+1)%3==1)
+            x = data[i]; 
+        else if ((i+1)%3==2)
+            y = data[i];
+        else
+            z = data[i]; 
+
+        if(z < 555 && z > 554)
+            std::cout << "(" << x << ',' << y << ',' << z << "), "; 
+
+    }
+    std::cout << "]\n";
+}
+
 
 /*
 TODO:
@@ -70,6 +126,8 @@ TODO:
 
 */
 
+OFVector<double> isocenter;
+
 int readPlan(const OFFilename& planFilename)
 {
     // open the rtplan file
@@ -85,10 +143,10 @@ int readPlan(const OFFilename& planFilename)
             status  = rtplan.getPatientName(patientName);
             if (status.good())
             {
-                cout << "Patient's Name: " << patientName << endl;
+                std::cout << "Patient's Name: " << patientName << std::endl;
             } 
             else
-                cerr << "Error: cannot access Patient's Name (" << status.text() << ")" << endl;
+                std::cerr << "Error: cannot access Patient's Name (" << status.text() << ")" << std::endl;
 
             /* TODO: write code to extract the following data
              * and store to a class
@@ -186,11 +244,11 @@ int readPlan(const OFFilename& planFilename)
         }
 
         else
-            cerr << "Error: cannot read RT Dose object (" << status.text() << ")" << endl;
+            std::cerr << "Error: cannot read RT Dose object (" << status.text() << ")" << std::endl;
     } 
     else
     {
-        cerr << "Error: cannot load DICOM file (" << status.text() << ")" << endl;
+        std::cerr << "Error: cannot load DICOM file (" << status.text() << ")" << std::endl;
         return EXIT_FAILURE;
     }
     return 0;
@@ -210,17 +268,17 @@ int readDose(const OFFilename& doseFilename)
             status = rtdose.getPatientName(patientName);
             if (status.good())
             {
-                cout << "Patient's Name: " << patientName << endl;
+                std::cout << "Patient's Name: " << patientName << std::endl;
             } 
             else
-                cerr << "Error: cannot access Patient's Name (" << status.text() << ")" << endl;
+                std::cerr << "Error: cannot access Patient's Name (" << status.text() << ")" << std::endl;
         } 
         else
-            cerr << "Error: cannot read RT Dose object (" << status.text() << ")" << endl;
+            std::cerr << "Error: cannot read RT Dose object (" << status.text() << ")" << std::endl;
     } 
     else
     {
-        cerr << "Error: cannot load DICOM file (" << status.text() << ")" << endl;
+        std::cerr << "Error: cannot load DICOM file (" << status.text() << ")" << std::endl;
         return EXIT_FAILURE;
     }
     return 0;
@@ -240,16 +298,12 @@ int readStruct(const OFFilename& structFilename)
             status = rtstruct.getPatientName(patientName);
             if (status.good())
             {
-                cout << "Patient's Name: " << patientName << endl;
+                std::cout << "Patient's Name: " << patientName << std::endl;
                 rtstruct.getStructureSetName(patientName);
                 std::cout << "Struct name: " << patientName << std::endl;
                 // extract the body contour
                 auto contourSequence = rtstruct.getStructureSetROISequence();       // rtstruct -> getStructureSetROISequence();
                 auto ROIcontourSequence = rtstruct.getROIContourSequence();
-
-                double resolution;
-                rtstruct.getSpatialResolution(resolution);                          // not working
-                std::cout << "Resolution " << resolution << '\n';           
 
                 for(int i = 0; i < contourSequence.getNumberOfItems(); i++)
                 {
@@ -257,7 +311,7 @@ int readStruct(const OFFilename& structFilename)
                     OFString name;
                     ROI.getROIName(name);                               // item->GetName();
 
-                    //if(name == "BODY")
+                    if(name == "BODY")
                     {
                         std::cout << "name : " << name << '\n';
                         ROI.getROINumber(name);                                 // ROINumber = ReferenceNumber
@@ -266,64 +320,40 @@ int readStruct(const OFFilename& structFilename)
                         std::cout << "Execute the logic\n";
 
                         auto ROI1 = ROIcontourSequence[i];
-                        auto contour = ROI1.getContourSequence();
-                        
                         int refNumber;
                         ROI1.getReferencedROINumber(refNumber);
                         std::cout << "Reference number: " << refNumber << '\n';
-                        int val;
-                        contour[0].getContourNumber(val);
-                        std::cout << "contour val: " << val << '\n';
-                        contour[0].getNumberOfContourPoints(val);
-                        std::cout << "contour points: " << val << '\n';
 
+                        auto contour = ROI1.getContourSequence();
+                         
+                        int contourPlane = 0;
+                        while(contour[contourPlane++].isValid())
+                        {
+                            std::cout << "Contour plane: " << (contourPlane-1) << '\n';
+                            int val;
+                            contour[contourPlane].getNumberOfContourPoints(val);
+                            std::cout << "contour points: " << val << '\n';
 
-                        OFVector<double> data;
-                        contour[4].getContourData(data);                            // this funcition gives out (x,y,z) or so;
-                        std::cout << data;                                          // need to extract the x, y, z to get the contour points
+                            OFVector<double> data;
+                            contour[contourPlane].getContourData(data);                            // this funcition gives out (x,y,z) or so;
+                            printVector(data);
+                            //std::cout << data;                                          // need to extract the x, y, z to get the contour points
+                        }
 
-                        contour[0].getNumberOfContourPoints(val);
-                        std::cout << "contour points: " << val << '\n';
-
-                        double thickness;
-                        contour[0].getContourSlabThickness(thickness);
-                        std::cout << "Thickness: " << thickness << '\n';
-
-                        OFString color;
-                        contour[0].getAttachedContours(color);
-                        std::cout << "Attached Contour: " << color << '\n';
-
-                        OFVector<double> offsetVector;
-                        contour[0].getContourOffsetVector(offsetVector);
-                        std::cout << "OffsetVector: " << offsetVector << '\n';
-
-
-
-                        std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-                        contour[1].getContourData(data);
-                        std::cout << data;
-
-
-
-
-
-                        double ROIVolume;
-                        ROI.getROIVolume(ROIVolume);
-                        std::cout << ROIVolume << '\n';
                     }
 
                 }
 
             } 
             else
-                cerr << "Error: cannot access Patient's Name (" << status.text() << ")" << endl;
+                std::cerr << "Error: cannot access Patient's Name (" << status.text() << ")" << std::endl;
         } 
         else
-            cerr << "Error: cannot read RT struct object (" << status.text() << ")" << endl;
+            std::cerr << "Error: cannot read RT struct object (" << status.text() << ")" << std::endl;
     } 
     else
     {
-        cerr << "Error: cannot load DICOM file (" << status.text() << ")" << endl;
+        std::cerr << "Error: cannot load DICOM file (" << status.text() << ")" << std::endl;
         return EXIT_FAILURE;
     }
     return 0;
@@ -348,11 +378,17 @@ int main(int argc, char** argv)
     }
 
 
-    readPlan(planFilename);
+    //readPlan(planFilename);
     std::cout << "--------------------------------------\n";
-    readDose(doseFilename);
+    //readDose(doseFilename);
     std::cout << "--------------------------------------\n";
-    readStruct(structFilename);
+    //readStruct(structFilename);
+
+    CPInformation cp1(00);
+    CPInformation cp2(90);
+    CPInformation cp3(180);
+    CPInformation cp4(270);
+    CPInformation cp5(45);
 
     
     return 0;
