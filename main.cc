@@ -18,6 +18,9 @@
 #include "dcmtk/dcmrt/drtionpl.h"
 #include "dcmtk/dcmrt/drtiontr.h"
 
+// time
+#include <time.h>
+
 class CPInformation
 {
 private:
@@ -25,9 +28,11 @@ private:
     double cp_collimatorAngle;
     double cp_couchAngle;
 
-    double cp_MU;
+    double cp_MU;               // TODO: need to find out from DCMTK
+    double cp_SSD;              // TODO: calculate from the SS
+    double _energy;
 
-    std::vector<double> _isocenter;
+    std::vector<double> _isocenter {0,0,0};
     std::vector<double> cp_gantryPoint {0,0,0};
 
     void calculateGantryPoint()
@@ -38,16 +43,121 @@ private:
         cp_gantryPoint[1] = _isocenter[1] + 1000 * std::cos(gantryAngleInRadian);
         cp_gantryPoint[2] = _isocenter[2];
     }
-        
-    
+
+    void calculateSSD()             // exclude non Coplanar plans
+    {
+        // need the nearest point to the contour;
+        // need the contour
+        // need the gantry point
+        // need isocenter
+        cp_SSD = 100 ;
+
+    }
+
+    void setIsocenter(OFVector<double> isocenter)
+    {
+        _isocenter[0] = isocenter[0];
+        _isocenter[1] = isocenter[1];
+        _isocenter[2] = isocenter[2];
+        // TODO: to be removed
+        std::cout << "Isocenter: ("
+                  << _isocenter[0] << ", "
+                  << _isocenter[1] << ", "
+                  << _isocenter[2] << "\n";
+    }
+
 public:
+    ~CPInformation()
+    {}
+
+    // list of constructors, remove the ones not needed
     CPInformation(double gantryAngle): cp_gantryAngle(gantryAngle), _isocenter({0,0,0})
     {
        calculateGantryPoint(); 
         std::cout << "(" << cp_gantryPoint[0] << ", " << cp_gantryPoint[1] << "," << cp_gantryPoint[2] << ")\n";
     }
-    ~CPInformation()
-    {}
+    
+
+    // we do only for simple plans first, so only 1 or limited control points
+    CPInformation(const OFFilename& rtPlanFilename)
+    {
+        // extract the isocenter to update the isocenter
+        DcmFileFormat fileformat;
+        OFCondition status = fileformat.loadFile(rtPlanFilename);
+        if(status.good())
+        {
+            DRTPlanIOD rtplan;
+            status = rtplan.read(*fileformat.getDataset());
+            if(status.good())
+            {
+                OFString patientName;
+                status  = rtplan.getPatientName(patientName);
+                if (status.good())
+                {
+                    std::cout << "Patient's Name: " << patientName << std::endl;
+                } 
+                else
+                    std::cerr << "Error: cannot access Patient's Name (" << status.text() << ")" << std::endl;
+
+                /* TODO: write code to extract the following data and update in CPInformation
+                 * 1. Monitor unit
+                 * 2. depth for tpr/pdd
+                 * 3. SSD
+                 * 4. field size
+                 * 5. MLC
+                 *
+                 */
+                try
+                {
+
+                    auto beam = rtplan.getBeamSequence().getItem(0);        // 0 and 1 work for this example -  will use do while for iteration
+                    OFString beamType;
+                    beam.getBeamType(beamType);
+                    std::cout << "Beam Type: " << beamType << '\n';
+
+                    double mu; 
+                    beam.getFinalCumulativeMetersetWeight(mu);
+                    std::cout << "MU: " << mu << '\n';
+                    // TODO: need to get the actual meterset
+
+                    int numcp;
+                    beam.getNumberOfControlPoints(numcp);
+                    std::cout << "Number of control points: " << numcp << '\n';
+                    auto cp = beam.getControlPointSequence();
+
+                    // only use controlpoint 0 for now
+                    cp[0].getGantryAngle(cp_gantryAngle);
+                    cp[0].getBeamLimitingDeviceAngle(cp_collimatorAngle);
+                    cp[0].getNominalBeamEnergy(_energy);
+
+
+                    std::cout << "Gantry Angle: " << cp_gantryAngle
+                              << "\nCollimator Angle: " << cp_collimatorAngle 
+                              << "\nBeam Energy: " << _energy << '\n';
+
+
+                    OFVector<double> isocenter;
+                    cp[0].getIsocenterPosition(isocenter);
+                    setIsocenter(isocenter);        
+                    calculateGantryPoint(); 
+                    std::cout << "(" << cp_gantryPoint[0] << "," << cp_gantryPoint[1] << "," << cp_gantryPoint[2] << ")\n";
+                }
+                catch(...)
+                {
+                    std::cerr << "EXception caught!\n";
+                }
+
+            }
+
+            else
+                std::cerr << "Error: cannot read RT Dose object (" << status.text() << ")" << std::endl;
+        } 
+        else
+        {
+            std::cerr << "Error: cannot load DICOM file (" << status.text() << ")" << std::endl;
+        }
+    }
+     
 };
 
 
@@ -79,26 +189,30 @@ std::ostream& operator<<(std::ostream& os, OFVector<double> data)
 }
 void printVector(OFVector<double> data)
 {
-    std::cout << "[";
-    double x, y, z;
-    for(int i =0; i < data.size(); i++)
+    if(data[2] < 555 && data[2] > 554)           
     {
-        if ((i+1)%3==1)
-            x = data[i]; 
-        else if ((i+1)%3==2)
-            y = data[i];
-        else
-            z = data[i]; 
+        std::cout << "[";
+        double x, y, z;
+        for(int i =0; i < data.size(); i++)
+        {
+            if ((i+1)%3==1)
+                x = data[i]; 
+            else if ((i+1)%3==2)
+                y = data[i];
+            else
+                z = data[i]; 
 
-        if(z < 555 && z > 554)
-            std::cout << "(" << x << ',' << y << ',' << z << "), "; 
+            if(z < 555 && z > 554)
+                std::cout << "(" << x << ',' << y << ',' << z << "), "; 
 
-    }
+        }
     std::cout << "]\n";
+    }
 }
 
 
 /*
+ * o1
 TODO:
     1. open a rt-plan
     2. extract the information needed to calculate the dose                     - in progress, need data - rtplan, rtdose, rtstruct
@@ -329,10 +443,10 @@ int readStruct(const OFFilename& structFilename)
                         int contourPlane = 0;
                         while(contour[contourPlane++].isValid())
                         {
-                            std::cout << "Contour plane: " << (contourPlane-1) << '\n';
-                            int val;
-                            contour[contourPlane].getNumberOfContourPoints(val);
-                            std::cout << "contour points: " << val << '\n';
+                            //std::cout << "Contour plane: " << (contourPlane-1) << '\n';
+                            //int val;
+                            //contour[contourPlane].getNumberOfContourPoints(val);
+                            //std::cout << "contour points: " << val << '\n';
 
                             OFVector<double> data;
                             contour[contourPlane].getContourData(data);                            // this funcition gives out (x,y,z) or so;
@@ -361,6 +475,10 @@ int readStruct(const OFFilename& structFilename)
 
 int main(int argc, char** argv)
 {
+    clock_t clkStart, clkEnd;
+    clkStart = clock();
+        
+
     using namespace std::literals;
 
     OFFilename planFilename, doseFilename, structFilename;         // TODO: use char array to reduce memory
@@ -382,14 +500,12 @@ int main(int argc, char** argv)
     std::cout << "--------------------------------------\n";
     //readDose(doseFilename);
     std::cout << "--------------------------------------\n";
-    //readStruct(structFilename);
+    readStruct(structFilename);
 
-    CPInformation cp1(00);
-    CPInformation cp2(90);
-    CPInformation cp3(180);
-    CPInformation cp4(270);
-    CPInformation cp5(45);
+    CPInformation cp1(planFilename);
 
+    clkEnd = clock();
+    std::cout << (float)(clkEnd - clkStart)/CLOCKS_PER_SEC << "SECONDS";
     
     return 0;
 }
