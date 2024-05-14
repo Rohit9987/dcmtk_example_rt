@@ -21,6 +21,9 @@
 // time
 #include <time.h>
 
+// itk headers
+#include "itkMesh.h"
+
 class CPInformation
 {
 private:
@@ -34,6 +37,14 @@ private:
 
     std::vector<double> _isocenter {0,0,0};
     std::vector<double> cp_gantryPoint {0,0,0};
+
+
+    // itk contours
+    using PixelType = float;
+    constexpr static unsigned int Dimension = 3;
+    using MeshType = itk::Mesh<PixelType, Dimension>;
+
+    MeshType::Pointer bodyContour;
 
     void calculateGantryPoint()
     {
@@ -66,21 +77,17 @@ private:
                   << _isocenter[2] << "\n";
     }
 
-public:
-    ~CPInformation()
-    {}
-
-    // list of constructors, remove the ones not needed
-    CPInformation(double gantryAngle): cp_gantryAngle(gantryAngle), _isocenter({0,0,0})
+    void constructVolumeMesh(const OFFilename& rtStructFilename)
     {
-       calculateGantryPoint(); 
-        std::cout << "(" << cp_gantryPoint[0] << ", " << cp_gantryPoint[1] << "," << cp_gantryPoint[2] << ")\n";
+
+        bodyContour = MeshType::New();             // part of the class
+
+        std::cout << "Hello from the mesh world!\n";
     }
     
-
-    // we do only for simple plans first, so only 1 or limited control points
-    CPInformation(const OFFilename& rtPlanFilename)
+    void constructPlan(const OFFilename& rtPlanFilename)
     {
+        std::cout << "Hello from the plan world!\n";
         // extract the isocenter to update the isocenter
         DcmFileFormat fileformat;
         OFCondition status = fileformat.loadFile(rtPlanFilename);
@@ -157,6 +164,27 @@ public:
             std::cerr << "Error: cannot load DICOM file (" << status.text() << ")" << std::endl;
         }
     }
+
+public:
+    ~CPInformation()
+    {}
+
+    // list of constructors, remove the ones not needed
+    CPInformation(double gantryAngle): cp_gantryAngle(gantryAngle), _isocenter({0,0,0})
+    {
+        calculateGantryPoint(); 
+        std::cout << "(" << cp_gantryPoint[0] << ", " << cp_gantryPoint[1] << "," << cp_gantryPoint[2] << ")\n";
+    }
+    
+
+    // we do only for simple plans first, so only 1 or limited control points
+    CPInformation(const OFFilename& rtPlanFilename, const OFFilename& rtStructFilename)
+    {
+        constructVolumeMesh(rtStructFilename);
+        constructPlan(rtPlanFilename);
+        
+    }
+    
      
 };
 
@@ -502,7 +530,7 @@ int main(int argc, char** argv)
     std::cout << "--------------------------------------\n";
     readStruct(structFilename);
 
-    CPInformation cp1(planFilename);
+    CPInformation cp1(planFilename, structFilename);
 
     clkEnd = clock();
     std::cout << (float)(clkEnd - clkStart)/CLOCKS_PER_SEC << "SECONDS";
