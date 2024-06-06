@@ -6,16 +6,20 @@
 
 Plan::Plan(const OFFilename& rtPlanFilename, const OFFilename& rtStructFilename, const OFFilename& rtDoseFilename)
 {
-        std::cout << rtPlanFilename 
-                  << rtStructFilename
-                  << rtDoseFilename     << '\n' ;
+        std::cout << "RTPlan: " << rtPlanFilename  << '\n'
+                  << "RTStruct: " << rtStructFilename << '\n'
+                  << "RTDose: " << rtDoseFilename     << '\n' ;
 
         loadStruct(rtStructFilename);
 
         for(const auto& contour: m_contours)
         {
-            std::cout << contour->getContourName() << '\n';
+            std::cout << contour.getContourName() << '\n';
         }
+}
+
+Plan::~Plan()
+{
 }
 
 static void printVector(OFVector<double> data)
@@ -78,7 +82,11 @@ void Plan::loadStruct(const OFFilename& rtStructFilename)
 
                 auto contour = ROI1.getContourSequence();
                 //m_contours.push_back(std::make_unique<Contour>(ROIName.c_str()));
-                m_contours.push_back(std::make_unique<Contour>(ROIName.c_str(), contour));
+                //m_contours.push_back(std::make_unique<Contour>(ROIName.c_str(), contour));
+
+				Contour m_contour(ROIName.c_str(), contour);
+
+				m_contours.push_back(m_contour);
             
                  
                 int contourPlane = 0;

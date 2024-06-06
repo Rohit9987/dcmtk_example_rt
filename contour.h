@@ -23,5 +23,6 @@ public:
     Contour(const char* contourName, DRTContourSequence& contour);
     ~Contour();
 
+
     const char* getContourName() const { return m_contourName;}
 };

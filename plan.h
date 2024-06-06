@@ -25,7 +25,8 @@
 class Plan
 {
 
-    std::vector<std::unique_ptr<Contour>> m_contours;
+    //std::vector<std::unique_ptr<Contour>> m_contours;
+	std::vector<Contour> m_contours;
     std::vector<Beam> m_beams;
 
     // TODO: some kind of implementation for dose as well
@@ -37,6 +38,7 @@ class Plan
     void loadDose(const OFFilename& filename) {};
 
     void loadCTImage(/*foldername*/) {};
+
     
 public:
     // contructor to load the files
@@ -45,7 +47,6 @@ public:
     // constructor with foldername to load all the plan details
     Plan(const char* foldername) {}
 
-
     //destructor
-    ~Plan() {};
+    ~Plan();
 };

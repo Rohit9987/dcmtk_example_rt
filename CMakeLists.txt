@@ -13,4 +13,4 @@ file(GLOB HEADERS "${CMAKE_SOURCE_DIR}/*.h")
 
 add_executable(output.out main.cc ${HEADERS} ${SOURCES})
 
-target_link_libraries(output.out ${DCMTK_LIBRARIES} ${ITK_LIBRARIES})
+target_link_libraries(output.out ${DCMTK_LIBRARIES} ${ITK_LIBRARIES} -ldcmimgle -ldcmdata -loflog -lofstd -lz)
