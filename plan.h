@@ -33,7 +33,7 @@ class Plan
 
 
     // methods
-    void loadPlan(const OFFilename& filename) {};
+    void loadPlan(const OFFilename& filename);
     void loadStruct(const OFFilename& filename);
     void loadDose(const OFFilename& filename) {};
 

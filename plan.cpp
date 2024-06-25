@@ -12,10 +12,14 @@ Plan::Plan(const OFFilename& rtPlanFilename, const OFFilename& rtStructFilename,
 
         loadStruct(rtStructFilename);
 
+		// TODO: remove later
         for(const auto& contour: m_contours)
         {
             std::cout << contour.getContourName() << '\n';
         }
+
+		loadPlan(rtPlanFilename);
+		 
 }
 
 Plan::~Plan()
@@ -57,6 +61,7 @@ void Plan::loadStruct(const OFFilename& rtStructFilename)
         {
             OFString name;
             rtstruct.getPatientName(name);
+			// TODO: check if the names match on all the files
             std::cout << "Patient Name: " << name << '\n';
 
             auto contourSequence = rtstruct.getStructureSetROISequence();       // rtstruct -> getStructureSetROISequence();
@@ -79,33 +84,24 @@ void Plan::loadStruct(const OFFilename& rtStructFilename)
                 if(roiNumber != refNumber)
                     std::cerr << "Waring : ROINumber and refNumber not matching!\n";
 
-
                 auto contour = ROI1.getContourSequence();
-                //m_contours.push_back(std::make_unique<Contour>(ROIName.c_str()));
-                //m_contours.push_back(std::make_unique<Contour>(ROIName.c_str(), contour));
-
 				Contour m_contour(ROIName.c_str(), contour);
-
 				m_contours.push_back(m_contour);
-            
-                 
-                int contourPlane = 0;
-                while(contour[contourPlane++].isValid())
-                {
-                    //std::cout << "Contour plane: " << (contourPlane-1) << '\n';
-                    //int val;
-                    //contour[contourPlane].getNumberOfContourPoints(val);
-                    //std::cout << "contour points: " << val << '\n';
-
-                    OFVector<double> data;
-                    contour[contourPlane].getContourData(data);                            // this funcition gives out (x,y,z) or so;
-                    //printVector(data);
-                    //std::cout << data;                                          // need to extract the x, y, z to get the contour points
-                    
-
-                }
             }
         }
     }
+}
 
-};
+
+void Plan::loadPlan(const OFFilename& filename)
+{
+
+	Beam beam;
+
+	beam.setContourPointerToBeam(&m_contours);	
+	
+
+	// TODO: the rest of the control points
+
+
+}
