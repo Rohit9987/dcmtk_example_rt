@@ -19,18 +19,11 @@ void Contour::convertContourToMesh(DRTContourSequence& contour)
 
 	PointType point;
 
-	point[0] = 0.0;
-	point[1] = 1.0;
-	point[2] = 0.0;
-	
 	if (m_mesh == nullptr)
 	{
 		std::cerr << "No mesh created!\n";
 		return;	
 	}
-	
-	m_mesh->SetPoint(0, point);
-
 
 	int contourPlane = 0;
 	int dataPoint = 0;
@@ -68,4 +61,24 @@ Contour::~Contour()
 	//memset(m_contourName, '\0', sizeof(m_contourName));
 	//todo:: delete the names after the deletion of objects 
     std::cout << "Erased\n";
+}
+
+double Contour::calculateDepth(/* isocenter, sourcePoint*/)
+{
+	/*
+		isocenter x, y, z;
+		source xs, ys, zs;
+
+		x = x - xs;
+		y = y - ys;
+		z = z - zs;		// first one
+		first find the z coordinate of the isocenter first
+		then find the closest point;
+
+
+
+
+	*/
+
+	return 100;		// mm
 }

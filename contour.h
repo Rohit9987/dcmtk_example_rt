@@ -15,7 +15,10 @@ class Contour
     char* m_contourName;
 
     // methods
+	// method to convert contour from dcm to ITK mesh
     void convertContourToMesh(DRTContourSequence& contour);
+
+	double calculateDepth(/*point*/);
 
 
 public:
