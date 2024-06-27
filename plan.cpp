@@ -95,6 +95,105 @@ void Plan::loadStruct(const OFFilename& rtStructFilename)
 
 void Plan::loadPlan(const OFFilename& filename)
 {
+	// open the rtplan file
+	DcmFileFormat fileformat;
+	OFCondition status = fileformat.loadFile(filename);
+
+	if(status.good())
+	{
+		DRTPlanIOD rtplan;
+		status = rtplan.read(*fileformat.getDataset());
+		
+		if(status.good())
+		{
+			OFString patientName;
+			status = rtplan.getPatientName(patientName);
+			if(status.good())
+				std::cout << "Patient name (rtplan): " << patientName << '\n';
+			else
+				std::cerr << "Error: Cannot access patient name (rtplan) (" << status.text() << ")\n";
+		
+			try
+			{
+				auto nbeams = rtplan.getBeamSequence().getNumberOfItems();
+				for(int j = 0; j < nbeams; j++)
+				{
+					auto beam = rtplan.getBeamSequence().getItem(j);
+					OFString beamType;
+					beam.getBeamType(beamType);
+					std::cout << "Beam Type: " << beamType <<'\n';
+
+					double mu;
+					beam.getFinalCumulativeMetersetWeight(mu);
+					std::cout << "MU : " << mu << '\n';
+
+					int numcp;
+					beam.getNumberOfControlPoints(numcp);
+					std::cout << "Number of Control points: " << numcp << '\n';
+
+					auto cp = beam.getControlPointSequence();
+
+					for(int i = 0; i < numcp - 1; i++)
+					{
+						double angle;
+						cp[i].getGantryAngle(angle);
+						std::cout << "Gantry angle: " << angle <<'\n';
+
+						double colAngle;
+						cp[i].getBeamLimitingDeviceAngle(colAngle);
+						std::cout << "Col Angle: " << colAngle <<'\n';
+
+						double energy;
+						cp[i].getNominalBeamEnergy(energy);
+						std::cout << "Beam energy: " << energy << '\n';
+
+						double ssd;
+						cp[i].getSourceToSurfaceDistance(ssd);
+						std::cout << "SSD: " << ssd << '\n';
+
+						float ssd1;
+						cp[i].getSourceToExternalContourDistance(ssd1);
+						std::cout << "SSD1: " << ssd1 << '\n';
+
+						OFString entryPoint;
+						cp[i].getSurfaceEntryPoint(entryPoint);
+						std::cout << "EntryPoint" << entryPoint << '\n';
+
+						OFVector<double> isocenter;
+						cp[i].getIsocenterPosition(isocenter);
+						std::cout << "Isocenter:"<< isocenter[0] << '\n';
+						std::cout << "Isocenter:"<< isocenter[1] << '\n';
+						std::cout << "Isocenter:"<< isocenter[2] << '\n';
+
+						OFVector<double> surface;
+						cp[i].getSurfaceEntryPoint(surface);
+						std::cout << "Surface: " << surface[0] << '\n';
+						std::cout << "Surface: " << surface[1] << '\n';
+						std::cout << "Surface: " << surface[2] << '\n';
+
+	/*
+						auto blds = cp[i].getBeamLimitingDevicePositionSequence();
+						for(int j = 0; j < blds.getNumberOfItems(); j++)
+						{
+							OFString bldType;
+							blds[j].getRTBeamLimitingDeviceType(bldType);
+							std::cout << "BLD Type: " << bldType << '\n';;
+							OFVector<double> positions;
+							blds[j].getLeafJawPositions(positions);
+							for(auto position: positions)
+								std::cout << j << ": " << position << "\n";
+						}
+						*/
+
+					}
+
+				}
+			}
+			catch(...)
+			{}
+
+		}
+	}
 
 	Beam beam;
 
