@@ -22,11 +22,20 @@ private:
     double cp_SSD;              // TODO: calculate from the SS
     double _energy;
 
+	
     std::vector<double> _isocenter {0,0,0};
     std::vector<double> cp_gantryPoint {0,0,0};
 
 
+	// jaws and mlc;
+	double x1, x2, y1, y2;
+	double _mlc[120];
+
+
     // itk contours
+	// TODO: move this to the beam
+	// just send the gantry point for calculation
+	// or to the plan itself
     using PixelType = float;
     constexpr static unsigned int Dimension = 3;
     using MeshType = itk::Mesh<PixelType, Dimension>;
@@ -163,6 +172,35 @@ public:
         std::cout << "(" << cp_gantryPoint[0] << ", " << cp_gantryPoint[1] << "," << cp_gantryPoint[2] << ")\n";
     }
     
+	// colangle and couch angle can be beam properties
+    ControlPoint(double gantryAngle, double x1, double x2, double y1, double y2, double  mlc[]): 
+	cp_gantryAngle(gantryAngle), 
+	_isocenter({0,0,0}),
+	x1(x1),
+	x2(x2),
+	y1(y1),
+	y2(y2)
+    {
+		//TODO:  remove later
+		// lets print out the control Points
+		std::cout << "gantryAngle : " << gantryAngle
+				  << "(" << x1 << ","
+				  <<		x2 << ","
+				  <<		y1 << ","
+				  <<		y2 << ")"
+				  << '\n';
+
+		for(int i = 0; i < 120; i++ )
+			_mlc[i] = mlc[i];
+		
+		for(int i = 0; i < 120; i++ )
+			std::cout << i << " "  << _mlc[i] << '\n';
+
+
+
+        calculateGantryPoint(); 
+        std::cout << "(" << cp_gantryPoint[0] << ", " << cp_gantryPoint[1] << "," << cp_gantryPoint[2] << ")\n";
+    }
 
     // we do only for simple plans first, so only 1 or limited control points
     ControlPoint(const OFFilename& rtPlanFilename, const OFFilename& rtStructFilename)
@@ -171,6 +209,4 @@ public:
         constructPlan(rtPlanFilename);
         
     }
-    
-     
 };

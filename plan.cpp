@@ -113,6 +113,9 @@ void Plan::loadPlan(const OFFilename& filename)
 			else
 				std::cerr << "Error: Cannot access patient name (rtplan) (" << status.text() << ")\n";
 		
+			// TODO: convert the beam parameters to the class/instance
+			// beam has a container with control points
+
 			try
 			{
 				auto nbeams = rtplan.getBeamSequence().getNumberOfItems();
@@ -121,57 +124,38 @@ void Plan::loadPlan(const OFFilename& filename)
 					auto beam = rtplan.getBeamSequence().getItem(j);
 					OFString beamType;
 					beam.getBeamType(beamType);
-					std::cout << "Beam Type: " << beamType <<'\n';
 
 					double mu;
 					beam.getFinalCumulativeMetersetWeight(mu);
-					std::cout << "MU : " << mu << '\n';
 
 					int numcp;
 					beam.getNumberOfControlPoints(numcp);
-					std::cout << "Number of Control points: " << numcp << '\n';
+
 
 					auto cp = beam.getControlPointSequence();
 
+					OFVector<double> isocenter;
+					cp[0].getIsocenterPosition(isocenter);
+
+					double energy;
+					cp[0].getNominalBeamEnergy(energy);
+
+					double colAngle;
+					cp[0].getBeamLimitingDeviceAngle(colAngle);
+
+					// initialize a new beam object
+					Beam beam1{Beam::BeamType::STATIC, mu, numcp, energy, {isocenter[0], isocenter[1], isocenter[2]}};
+
 					for(int i = 0; i < numcp - 1; i++)
 					{
+
 						double angle;
 						cp[i].getGantryAngle(angle);
-						std::cout << "Gantry angle: " << angle <<'\n';
 
-						double colAngle;
-						cp[i].getBeamLimitingDeviceAngle(colAngle);
-						std::cout << "Col Angle: " << colAngle <<'\n';
+						// TODO: need data storage for x1, x2, y1, y2, and mlcpoints;
 
-						double energy;
-						cp[i].getNominalBeamEnergy(energy);
-						std::cout << "Beam energy: " << energy << '\n';
+						double x1, x2, y1, y2, mlc[120];
 
-						double ssd;
-						cp[i].getSourceToSurfaceDistance(ssd);
-						std::cout << "SSD: " << ssd << '\n';
-
-						float ssd1;
-						cp[i].getSourceToExternalContourDistance(ssd1);
-						std::cout << "SSD1: " << ssd1 << '\n';
-
-						OFString entryPoint;
-						cp[i].getSurfaceEntryPoint(entryPoint);
-						std::cout << "EntryPoint" << entryPoint << '\n';
-
-						OFVector<double> isocenter;
-						cp[i].getIsocenterPosition(isocenter);
-						std::cout << "Isocenter:"<< isocenter[0] << '\n';
-						std::cout << "Isocenter:"<< isocenter[1] << '\n';
-						std::cout << "Isocenter:"<< isocenter[2] << '\n';
-
-						OFVector<double> surface;
-						cp[i].getSurfaceEntryPoint(surface);
-						std::cout << "Surface: " << surface[0] << '\n';
-						std::cout << "Surface: " << surface[1] << '\n';
-						std::cout << "Surface: " << surface[2] << '\n';
-
-	/*
 						auto blds = cp[i].getBeamLimitingDevicePositionSequence();
 						for(int j = 0; j < blds.getNumberOfItems(); j++)
 						{
@@ -180,12 +164,34 @@ void Plan::loadPlan(const OFFilename& filename)
 							std::cout << "BLD Type: " << bldType << '\n';;
 							OFVector<double> positions;
 							blds[j].getLeafJawPositions(positions);
+							int m = 0;
 							for(auto position: positions)
-								std::cout << j << ": " << position << "\n";
+								std::cout << j << ": "  << m++ << " : "  << position << "\n";
+
+							if(j == 0)
+							{
+								x1 = positions[0];
+								x2 = positions[1];
+							}
+							else if(j == 1)
+							{
+								y1 = positions[0];
+								y2 = positions[1];
+							}
+
+							else
+							{
+								int k = 0;
+								for(auto position: positions)
+									mlc[k++] = position;
+							}
 						}
-						*/
+
+						ControlPoint(angle, x1, x2, y1, y2, mlc);
 
 					}
+
+					m_beams.push_back(beam1);
 
 				}
 			}
@@ -201,6 +207,5 @@ void Plan::loadPlan(const OFFilename& filename)
 	
 
 	// TODO: the rest of the control points
-
 
 }
