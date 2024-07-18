@@ -63,7 +63,7 @@ Contour::~Contour()
     std::cout << "Erased\n";
 }
 
-double Contour::calculateDepth(/* isocenter, sourcePoint*/)
+double Contour::calculateDepth(/* isocenter, sourcePoint*/) const
 {
 	/*
 		isocenter x, y, z;

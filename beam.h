@@ -32,21 +32,23 @@ public:
 	enum BeamType { STATIC, IMRT, VMAT, ELECTRON};
 	enum BeamType _beamType;
 
-    Beam() {};
+	Contour* m_body;
+	Contour* getBodyContour() 
+	{ 
+		if(m_body == nullptr)
+			std::cout << "Error: nullptr in beam!\n";
+		return m_body;
+	}
+
+    Beam() {}
 
     Beam(BeamType beamType, double mu, int numcp, double energy, std::vector<double> isocenter)
 	: _beamType(beamType), _mu(mu), _numCP(numcp), _beamEnergy(energy), _isocenter(isocenter)
 	{
-		std::cout
-			<< "BeamType : " << beamType
-			<< "\nmu : " << mu
-			<< "\nnumcp: " << numcp
-			<< "\nEnergy: " << energy
-			<< "\niso (" << isocenter[0] << ',' << isocenter[1] << ',' << isocenter[2] << ')'
-			<< '\n';
-	};
+
+	} 
 	
-    ~Beam() {};
+    ~Beam() {}
 
 
 	void setContourPointerToBeam(std::vector<Contour>* contours)
@@ -55,11 +57,25 @@ public:
 
 		// TODO: remove after execution
 		std::cout << "Structs available\n";
-        for(const auto& contour: *m_contours)
+		for(auto& contour: *m_contours)
         {
             std::cout << contour.getContourName() << '\n';
+			if(std::strcmp(contour.getContourName(), "BODY") == 0)
+			{
+				std::cout << "Found Body\n";
+				m_body = &contour;
+
+			}
         }
+	}
 
 
+
+	void addControlPoint(ControlPoint& cp1)
+	{
+		m_controlPoints.push_back(cp1);
+		//TODO: remove later
+		std::cout << "__________________________________________________________\n";
+		std::cout << "Total CPs: " << m_controlPoints.size() << '\n';
 	}
 };

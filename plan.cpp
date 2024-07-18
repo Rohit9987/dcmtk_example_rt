@@ -26,28 +26,6 @@ Plan::~Plan()
 {
 }
 
-static void printVector(OFVector<double> data)
-{
-    if(data[2] < 555 && data[2] > 554)           
-    {
-        std::cout << "[";
-        double x, y, z;
-        for(int i =0; i < data.size(); i++)
-        {
-            if ((i+1)%3==1)
-                x = data[i]; 
-            else if ((i+1)%3==2)
-                y = data[i];
-            else
-                z = data[i]; 
-
-            if(z < 555 && z > 554)
-                std::cout << "(" << x << ',' << y << ',' << z << "), "; 
-
-        }
-    std::cout << "]\n";
-    }
-}
 
 void Plan::loadStruct(const OFFilename& rtStructFilename)
 {
@@ -145,8 +123,9 @@ void Plan::loadPlan(const OFFilename& filename)
 
 					// initialize a new beam object
 					Beam beam1{Beam::BeamType::STATIC, mu, numcp, energy, {isocenter[0], isocenter[1], isocenter[2]}};
+					beam1.setContourPointerToBeam(&m_contours);	
 
-					for(int i = 0; i < numcp - 1; i++)
+					for(int i = 0; i < numcp ; i++)
 					{
 
 						double angle;
@@ -161,12 +140,10 @@ void Plan::loadPlan(const OFFilename& filename)
 						{
 							OFString bldType;
 							blds[j].getRTBeamLimitingDeviceType(bldType);
-							std::cout << "BLD Type: " << bldType << '\n';;
+
 							OFVector<double> positions;
 							blds[j].getLeafJawPositions(positions);
 							int m = 0;
-							for(auto position: positions)
-								std::cout << j << ": "  << m++ << " : "  << position << "\n";
 
 							if(j == 0)
 							{
@@ -187,12 +164,12 @@ void Plan::loadPlan(const OFFilename& filename)
 							}
 						}
 
-						ControlPoint(angle, x1, x2, y1, y2, mlc);
-
+						ControlPoint cp1(angle, x1, x2, y1, y2, mlc);
+						cp1.setBodyContour(beam1.getBodyContour());
+						//push_back controlpoint to beam1
+						beam1.addControlPoint(cp1);
 					}
-
 					m_beams.push_back(beam1);
-
 				}
 			}
 			catch(...)
@@ -201,9 +178,6 @@ void Plan::loadPlan(const OFFilename& filename)
 		}
 	}
 
-	Beam beam;
-
-	beam.setContourPointerToBeam(&m_contours);	
 	
 
 	// TODO: the rest of the control points

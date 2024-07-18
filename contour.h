@@ -18,7 +18,6 @@ class Contour
 	// method to convert contour from dcm to ITK mesh
     void convertContourToMesh(DRTContourSequence& contour);
 
-	double calculateDepth(/*point*/);
 
 
 public:
@@ -27,5 +26,6 @@ public:
     ~Contour();
 
 
+	double calculateDepth(/*point*/) const;
     const char* getContourName() const { return m_contourName;}
 };

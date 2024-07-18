@@ -1,6 +1,5 @@
 #pragma once
 
-
 // local headers
 #include "contour.h"
 #include "beam.h"

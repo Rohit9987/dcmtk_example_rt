@@ -11,6 +11,11 @@
 #include "dcmtk/dcmrt/drttreat.h"
 #include "dcmtk/dcmrt/drtionpl.h"
 #include "dcmtk/dcmrt/drtiontr.h"
+
+#include "contour.h"
+
+#include <cmath>
+
 class ControlPoint
 {
 private:
@@ -36,19 +41,17 @@ private:
 	// TODO: move this to the beam
 	// just send the gantry point for calculation
 	// or to the plan itself
-    using PixelType = float;
-    constexpr static unsigned int Dimension = 3;
-    using MeshType = itk::Mesh<PixelType, Dimension>;
 
-    MeshType::Pointer bodyContour;
+	Contour* m_body;
 
     void calculateGantryPoint()
     {
         double pi = 22./7.;
         double gantryAngleInRadian = cp_gantryAngle * M_PI / 180.0;
-        cp_gantryPoint[0] = _isocenter[0] + 1000 * std::sin(gantryAngleInRadian);
-        cp_gantryPoint[1] = _isocenter[1] + 1000 * std::cos(gantryAngleInRadian);
+        cp_gantryPoint[0] = std::round(_isocenter[0] + 1000 * std::sin(gantryAngleInRadian)*10)/10;
+        cp_gantryPoint[1] = std::round(_isocenter[1] + 1000 * std::cos(gantryAngleInRadian)*10)/10;
         cp_gantryPoint[2] = _isocenter[2];
+
     }
 
     void calculateSSD()             // exclude non Coplanar plans
@@ -58,6 +61,8 @@ private:
         // need the gantry point
         // need isocenter
         cp_SSD = 100 ;
+		std::cout << "Gantry Angle : " << cp_gantryAngle;
+
 
     }
 
@@ -73,93 +78,6 @@ private:
                   << _isocenter[2] << "\n";
     }
 
-    void constructVolumeMesh(const OFFilename& rtStructFilename)
-    {
-
-        bodyContour = MeshType::New();             // part of the class
-
-        std::cout << "Hello from the mesh world!\n";
-    }
-    
-    void constructPlan(const OFFilename& rtPlanFilename)
-    {
-        std::cout << "Hello from the plan world!\n";
-        // extract the isocenter to update the isocenter
-        DcmFileFormat fileformat;
-        OFCondition status = fileformat.loadFile(rtPlanFilename);
-        if(status.good())
-        {
-            DRTPlanIOD rtplan;
-            status = rtplan.read(*fileformat.getDataset());
-            if(status.good())
-            {
-                OFString patientName;
-                status  = rtplan.getPatientName(patientName);
-                if (status.good())
-                {
-                    std::cout << "Patient's Name: " << patientName << std::endl;
-                } 
-                else
-                    std::cerr << "Error: cannot access Patient's Name (" << status.text() << ")" << std::endl;
-
-                /* TODO: write code to extract the following data and update in CPInformation
-                 * 1. Monitor unit
-                 * 2. depth for tpr/pdd
-                 * 3. SSD
-                 * 4. field size
-                 * 5. MLC
-                 *
-                 */
-                try
-                {
-
-                    auto beam = rtplan.getBeamSequence().getItem(0);        // 0 and 1 work for this example -  will use do while for iteration
-                    OFString beamType;
-                    beam.getBeamType(beamType);
-                    std::cout << "Beam Type: " << beamType << '\n';
-
-                    double mu; 
-                    beam.getFinalCumulativeMetersetWeight(mu);
-                    std::cout << "MU: " << mu << '\n';
-                    // TODO: need to get the actual meterset
-
-                    int numcp;
-                    beam.getNumberOfControlPoints(numcp);
-                    std::cout << "Number of control points: " << numcp << '\n';
-                    auto cp = beam.getControlPointSequence();
-
-                    // only use controlpoint 0 for now
-                    cp[0].getGantryAngle(cp_gantryAngle);
-                    cp[0].getBeamLimitingDeviceAngle(cp_collimatorAngle);
-                    cp[0].getNominalBeamEnergy(_energy);
-
-
-                    std::cout << "Gantry Angle: " << cp_gantryAngle
-                              << "\nCollimator Angle: " << cp_collimatorAngle 
-                              << "\nBeam Energy: " << _energy << '\n';
-
-
-                    OFVector<double> isocenter;
-                    cp[0].getIsocenterPosition(isocenter);
-                    setIsocenter(isocenter);        
-                    calculateGantryPoint(); 
-                    std::cout << "(" << cp_gantryPoint[0] << "," << cp_gantryPoint[1] << "," << cp_gantryPoint[2] << ")\n";
-                }
-                catch(...)
-                {
-                    std::cerr << "EXception caught!\n";
-                }
-
-            }
-
-            else
-                std::cerr << "Error: cannot read RT Dose object (" << status.text() << ")" << std::endl;
-        } 
-        else
-        {
-            std::cerr << "Error: cannot load DICOM file (" << status.text() << ")" << std::endl;
-        }
-    }
 
 public:
     ~ControlPoint()
@@ -193,20 +111,25 @@ public:
 		for(int i = 0; i < 120; i++ )
 			_mlc[i] = mlc[i];
 		
-		for(int i = 0; i < 120; i++ )
-			std::cout << i << " "  << _mlc[i] << '\n';
-
-
-
         calculateGantryPoint(); 
-        std::cout << "(" << cp_gantryPoint[0] << ", " << cp_gantryPoint[1] << "," << cp_gantryPoint[2] << ")\n";
+		calculateSSD();
     }
 
+	void setBodyContour(Contour* body)
+	{
+		m_body = body;
+		if(m_body == nullptr)
+		{
+			std::cout << "Error null pointer\n";
+			return;
+		}
+		std::cout << "from controlPoint: \n";
+		std::cout << m_body->getContourName();
+
+		cp_SSD = 1000.0 - m_body->calculateDepth();
+
+
+		std::cout << "SSD: " << cp_SSD << '\n';
+	}
     // we do only for simple plans first, so only 1 or limited control points
-    ControlPoint(const OFFilename& rtPlanFilename, const OFFilename& rtStructFilename)
-    {
-        constructVolumeMesh(rtStructFilename);
-        constructPlan(rtPlanFilename);
-        
-    }
 };
